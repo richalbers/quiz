@@ -1,0 +1,268 @@
+/*
+	File: 	Quiz.css
+	Version: 0.7
+	Author:	Rich Albers
+*/
+ 
+/*=============================================================*/
+* {
+	font-family: Helvetica,  Arial; 
+	zcolor: black;
+	margin: 0px;
+	font-size: 16px;
+}
+	
+body {
+	background-color: #c5d5e4;; /*#d5e5f4;*/
+	zbackground-size: 100% 100%;
+	zbackground-repeat: no-repeat;
+	text-align:center;
+	font-family: Helvetica,  Arial; 
+	color: black;
+}
+	
+/* layout ---------------------------------------------------------- */
+#center {
+	width:900px;			
+	margin: 0 auto;			/* centers horizontally */
+	margin-top: 20px;
+	padding: 0px;
+	zborder: 1px solid red;
+}	
+
+#topics {
+	width: 240px;
+	float: left;
+	zborder: 1px solid red;
+	padding: 10px;
+	background-color:#637c92;
+	border-radius: 20px;
+}
+
+#quiz, #video {
+	width: 600px;
+	float: left;
+	margin-left: 5px;
+	padding: 10px;
+	zborder: 1px solid red;
+	background-color:#637c92;
+	border-radius: 20px;
+}
+
+/* headings -------------------------------------------*/
+
+h1 {
+	font-size: 130%;
+	margin-bottom: 10px;
+}
+
+h2 {
+	color: white;
+	margin-bottom: 10px;
+}
+
+/* topics pane -------------------------------------------*/
+.topic {
+	text-align: left;
+	margin: 2px;   
+	border-radius: 10px;
+	background-color:	#ddebf6;
+	padding: 6px;
+	border: 3px solid #637c92; /*same as content container*/
+}
+
+.topic h3 { /*topic (section) titles */
+	color: black;
+	padding-left: 5px;
+	font-size: 100%;
+}
+
+.topic h3:hover {
+	cursor: pointer;
+}
+
+.topic ul {
+	list-style: none;
+	padding-left: 0px;
+}
+
+.topic li { /*subtopic (quiz) titles */
+	padding-left: 15px;
+	border: 2px solid #ddebf6;
+	border-radius: 4px;
+	color: black;
+	font-weight: bold;
+	zfont-size: 120%;
+}
+
+.topic li:hover {
+	border: 2px solid orange;
+	zcolor: orange;
+}
+
+.topic .selected { /*selected subtopic*/
+	background-color: orange;
+	zborder-radius: 4px;
+}
+
+.contentLink {
+	color: black;
+	padding-left: 30px;
+	font-size: 90%;
+}
+.contentLink:hover {
+	cursor: pointer;
+}
+
+.topic .topicQstCount {
+	color: #AAAAAA;  /*larger #'s are lighter) */
+}
+
+
+/* items related to (primarily) the question ----------- */
+#quizTitle .topicQstCount {  /*the question count is part of the title and we don't want it displayed here*/
+	display: none;
+}
+
+#questionId {
+	float: left;
+	margin-left: 5px;
+	color: white;
+}
+
+#prev, #next {
+	float: right;
+	margin: 0px 4px 0px 0px; /*trbl*/
+	padding: 0px 4px;
+	border-radius: 4px;
+	border: 1px solid lightgray;
+	background-color: green;
+	color: white;
+	display: none;
+}
+
+#prev:hover, #next:hover {
+	cursor: pointer;
+}
+
+#questionNumber {
+	float: right;
+	margin-right: 5px;
+	color: white;
+}
+
+#question, #answers {
+	text-align: left;
+	margin: 5px;   
+	padding: 5px;
+}
+
+#question {
+	zborder: 1px solid red;
+	border-radius: 10px;
+	background-color:	#ddebf6;
+	padding: 10px;
+}
+
+#question .zzcode { /*FIX: need to make .code a div to format it properly*/
+	background-color: white;
+	border-radius: 5px;
+	padding: 5px 10px 15px 10px;
+}
+
+/* items related to answers --------------- */
+#answers {
+
+}
+
+.mark {
+	float: left;
+	visibility: hidden;
+	width: 35px;
+}
+
+.mark img {
+	margin-top: 5px;
+	width: 25px;
+	height: 25px;
+}
+
+#markDesc {
+		display: block;
+		position: absolute;
+		z-index: 5;
+		background-color: white;
+		border: 1px solid black;
+		padding: 4px;
+		border-radius: 4px;
+		color: black;
+		zfont-size: 20px;
+	}
+	
+#popupExplanation {
+		display: block;
+		position: absolute;
+		z-index: 5;
+		text-align: left;
+		background-color: white;
+		border: 1px solid black;
+		padding: 4px;
+		border-radius: 4px;
+		color: black;
+		zfont-size: 20px;
+	}
+	
+.answer {
+	margin: 10px 20px;
+	margin-left: 30px; /*moves left of mark*/
+	padding: 6px;
+	border: 3px solid #637c92; /*same as content container*/
+	border-radius: 10px;
+	background-color:	#ddebf6;
+}
+
+.answer:hover {
+	cursor: pointer;
+}
+
+.selected {
+	border-color: orange;
+}
+
+.correct {
+	background-color: lightgreen;
+}
+.incorrect {
+	background-color: #E77471; //sortof light red 
+}
+
+.code {
+	font-family: "Lucida Console", Monaco, monospace;
+}
+
+/* Items related to items below the answers --------- */
+#answerFooter {
+
+}
+
+#help, #explanation, #resultMsg{
+	margin: 5px 10px;
+	color: white;
+}
+
+#resultMsg img {
+	height: 20px;
+	width: 20px;
+}
+
+button {
+	border-radius: 10px;
+	margin-top: 5px;
+	background-color: green;
+	color: white;
+	padding: 5px;
+}
+
+#helpButton {
+	float: right;
+}
