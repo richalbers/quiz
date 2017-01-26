@@ -1,9 +1,11 @@
-
 //================================================================================
 // File: 		Quiz.js
 // Description: Displays review quizzes
-// Version: 	0.7
+// Version: 	0.8
 // Author: 		Rich Albers
+//
+// Changes
+//	1/26/17 - allowed up to 8 answers, answers can be labeled Answer1-4 or AnswerA-H
 //================================================================================
 
 
@@ -79,7 +81,7 @@ $(document).ready(function()
 	// load all questions from google spreadsheet (and build topic last)
 	var spreadsheetID = GetUrlParam('id');
 	if (spreadsheetID == null)
-		spreadsheetID = "1uEKeONFN2a3X304kH0J3YKYNMU6c_OuiN6fFEr55w0M";
+		spreadsheetID = "1um2uxlZF56-JufxIB6_9Wo5qwOP7p77o4-RHQoedQoA"; // test database
 	
 	oQuiz = new Quiz; 
 	oQuiz.getAndProcessQuestionData(spreadsheetID);	//Note: returns before completion (asyncronous!)
@@ -329,20 +331,51 @@ Quiz.prototype.loadQuestions = function(data)  {
 			//load answer data
 			var msgIncorrect="This is an incorrect answer";
 			q.answers = new Array;
+			//the first four can be Answer1,2,3,4 (old way) or answerA,B,C,D (new way)
 			if (typeof this.gsx$answer1 !== 'undefined' && trim(this.gsx$answer1.$t).length>0) 
 				q.answers.push({text: this.gsx$answer1.$t, correct: false, explanation: msgIncorrect});
+			else if (typeof this.gsx$answera !== 'undefined' && trim(this.gsx$answera.$t).length>0) 
+				q.answers.push({text: this.gsx$answera.$t, correct: false, explanation: msgIncorrect});
+			
 			if (typeof this.gsx$answer2 !== 'undefined' && trim(this.gsx$answer2.$t).length>0) 
 				q.answers.push({text: this.gsx$answer2.$t, correct: false, explanation: msgIncorrect});
+			else if (typeof this.gsx$answerb !== 'undefined' && trim(this.gsx$answerb.$t).length>0) 
+				q.answers.push({text: this.gsx$answerb.$t, correct: false, explanation: msgIncorrect});
+			
 			if (typeof this.gsx$answer3 !== 'undefined' && trim(this.gsx$answer3.$t).length>0) 
 				q.answers.push({text: this.gsx$answer3.$t, correct: false, explanation: msgIncorrect});
+			else if (typeof this.gsx$answerc !== 'undefined' && trim(this.gsx$answerc.$t).length>0) 
+				q.answers.push({text: this.gsx$answerc.$t, correct: false, explanation: msgIncorrect});
+			
 			if (typeof this.gsx$answer4 !== 'undefined' && trim(this.gsx$answer4.$t).length>0) 
 				q.answers.push({text: this.gsx$answer4.$t, correct: false, explanation: msgIncorrect});					
+			else if (typeof this.gsx$answerd !== 'undefined' && trim(this.gsx$answerd.$t).length>0) 
+				q.answers.push({text: this.gsx$answerd.$t, correct: false, explanation: msgIncorrect});			
+			
+			//only answerE,F,G,H are valid for the last 4 possible answers.
+			if (typeof this.gsx$answere !== 'undefined' && trim(this.gsx$answere.$t).length>0) 
+				q.answers.push({text: this.gsx$answere.$t, correct: false, explanation: msgIncorrect});					
+			if (typeof this.gsx$answerf !== 'undefined' && trim(this.gsx$answerf.$t).length>0) 
+				q.answers.push({text: this.gsx$answerf.$t, correct: false, explanation: msgIncorrect});
+			if (typeof this.gsx$answerg !== 'undefined' && trim(this.gsx$answerg.$t).length>0) 
+				q.answers.push({text: this.gsx$answerg.$t, correct: false, explanation: msgIncorrect});
+			if (typeof this.gsx$answerh !== 'undefined' && trim(this.gsx$answerh.$t).length>0) 
+				q.answers.push({text: this.gsx$answerh.$t, correct: false, explanation: msgIncorrect});
+			
 			//mark the correct answers as correct
 			for(var x=0; x<this.gsx$correct.$t.length; x++) {
-				var ansNdx=this.gsx$correct.$t[x]-1;
-				if (ansNdx<q.answers.length) {
-					q.answers[ansNdx].correct=true;
-					q.answers[ansNdx].explanation="This is a correct answer";
+
+				var sAnsNdx=this.gsx$correct.$t[x]; //1-4 (old way) or a-h (new way)
+				var ndx=99;
+				if (sAnsNdx >= 'a' && sAnsNdx <= 'h')
+					ndx = sAnsNdx.charCodeAt(0) - "a".charCodeAt(0); 
+				if (sAnsNdx >= 'A' && sAnsNdx <= 'H')
+					ndx = sAnsNdx.charCodeAt(0) - "A".charCodeAt(0); 
+				if (sAnsNdx >= '1' && sAnsNdx <= '4')
+					ndx = sAnsNdx.charCodeAt(0) - "1".charCodeAt(0);					
+				if (ndx<q.answers.length) {
+					q.answers[ndx].correct=true;
+					q.answers[ndx].explanation="This is a correct answer";
 				}
 			}
 			//load the help and explanation text
@@ -366,12 +399,32 @@ Quiz.prototype.loadQuestions = function(data)  {
 		else {
 			if (typeof this.gsx$answer1 !== 'undefined' && trim(this.gsx$answer1.$t).length>0) 
 				me.aQuestions[me.aQuestions.length-1].answers[0].explanation=this.gsx$answer1.$t;
+			else if (typeof this.gsx$answera !== 'undefined' && trim(this.gsx$answera.$t).length>0) 
+				me.aQuestions[me.aQuestions.length-1].answers[0].explanation=this.gsx$answera.$t;
+			
 			if (typeof this.gsx$answer2 !== 'undefined' && trim(this.gsx$answer2.$t).length>0) 
 				me.aQuestions[me.aQuestions.length-1].answers[1].explanation=this.gsx$answer2.$t;			
+			else if (typeof this.gsx$answerb !== 'undefined' && trim(this.gsx$answerb.$t).length>0) 
+				me.aQuestions[me.aQuestions.length-1].answers[1].explanation=this.gsx$answerb.$t;
+			
 			if (typeof this.gsx$answer3 !== 'undefined' && trim(this.gsx$answer3.$t).length>0) 
 				me.aQuestions[me.aQuestions.length-1].answers[2].explanation=this.gsx$answer3.$t;			
+			else if (typeof this.gsx$answerc !== 'undefined' && trim(this.gsx$answerc.$t).length>0) 
+				me.aQuestions[me.aQuestions.length-1].answers[2].explanation=this.gsx$answerc.$t;
+			
 			if (typeof this.gsx$answer4 !== 'undefined' && trim(this.gsx$answer4.$t).length>0) 
 				me.aQuestions[me.aQuestions.length-1].answers[3].explanation=this.gsx$answer4.$t;
+			else if (typeof this.gsx$answerd !== 'undefined' && trim(this.gsx$answerd.$t).length>0) 
+				me.aQuestions[me.aQuestions.length-1].answers[3].explanation=this.gsx$answerd.$t;			
+			
+			if (typeof this.gsx$answere !== 'undefined' && trim(this.gsx$answere.$t).length>0) 
+				me.aQuestions[me.aQuestions.length-1].answers[4].explanation=this.gsx$answere.$t;			
+			if (typeof this.gsx$answerf !== 'undefined' && trim(this.gsx$answerf.$t).length>0) 
+				me.aQuestions[me.aQuestions.length-1].answers[5].explanation=this.gsx$answerf.$t;
+			if (typeof this.gsx$answerg !== 'undefined' && trim(this.gsx$answerg.$t).length>0) 
+				me.aQuestions[me.aQuestions.length-1].answers[6].explanation=this.gsx$answerg.$t;
+			if (typeof this.gsx$answerh !== 'undefined' && trim(this.gsx$answerh.$t).length>0) 
+				me.aQuestions[me.aQuestions.length-1].answers[7].explanation=this.gsx$answerh.$t;			
 			} //else
 		lineNum++;
 	});//each
