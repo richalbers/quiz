@@ -1,11 +1,12 @@
 //================================================================================
-// File: 		Quiz.js
+// File: 	Quiz.js
 // Description: Displays review quizzes
 // Version: 	0.8
-// Author: 		Rich Albers
+// Author: 	Rich Albers
 //
 // Changes
 //	1/26/17 - allowed up to 8 answers, answers can be labeled Answer1-4 or AnswerA-H
+//      4/7/17 - replaced \n with <br> in explanations
 //================================================================================
 
 
@@ -542,7 +543,7 @@ Quiz.prototype.displayNextQuestion = function() {
 	
 	//question explanation
 	if ("explanation" in oQst)
-		$(EXPLANATION).html(oQst.explanation);
+		$(EXPLANATION).html( oQst.explanation.replace(/\n/g,"<br>") );
 	else
 		$(EXPLANATION).html("");
 	
