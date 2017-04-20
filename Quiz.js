@@ -5,8 +5,9 @@
 // Author: 	Rich Albers
 //
 // Changes
-//	1/26/17 - allowed up to 8 answers, answers can be labeled Answer1-4 or AnswerA-H
-//      4/7/17 - replaced \n with <br> in explanations
+//  1/26/17 - allowed up to 8 answers, answers can be labeled Answer1-4 or AnswerA-H
+//  4/7/17 - replaced \n with <br> in explanations
+//  4/20/17 - added ability to download selected sections as .gift file
 //================================================================================
 
 
@@ -91,8 +92,23 @@ $(document).ready(function()
 	
 	$('body').keypress( function(event) {
 		if (String.fromCharCode(event.which) == 'd')
-			if (confirm('Download quiz data as .gift file?'))
-				oQuiz.downloadAsGift();
+			alert("'d' has been deprecated!\nUse 'a' to download all quiz data.\nUse 's' to download only the visible (i.e. open) sections");
+		if (String.fromCharCode(event.which) == 'a')
+			if (confirm('Download all quiz data as .gift file?'))
+				oQuiz.downloadAsGift([]); //Note: empty array parameter causes ALL sections to be download
+		if (String.fromCharCode(event.which) == 's') {
+			//get list of open topics
+			var aTopics = new Array;
+			$('#topics ul').each( function () {
+				if ($(this).css("display") != "none")	  //those displayed
+					aTopics.push( $(this).prev().html() ); //topic title (h3)
+			})
+			if (aTopics.length < 1)
+				alert('No Topics selected.\nPlease select the topics to download by expanding them in the topic list.');
+			else if (confirm("Download the following section's data as .gift file:\n  *" + (" " + aTopics).replace(/\,/g, "\n  * ") )) {
+				oQuiz.downloadAsGift(aTopics);
+			}
+		}
 	});
 	
 	//topic selected from list
@@ -241,6 +257,7 @@ function hideButtonsAndMessages() {
 // depends on a bunch of constants 
 
 function Quiz() {
+	this.title="";
 	this.aQuestions = new Array; 	//array of questions (each question consists of text and an array of answers)
 	this.iCurrQst = -1;				//index of question currently displayed
 	this.iFirstNdx = -1;
@@ -281,6 +298,7 @@ Quiz.prototype.setLimits = function(topicSubTopic) {
 Quiz.prototype.getAndProcessQuestionData = function(spreadsheetID) {
 	var me=this;
 	
+	me.title="";
 	me.firstNdx=-1;
 	me.lastNdx=-1;
 	me.currNdx=-1;
@@ -295,7 +313,8 @@ Quiz.prototype.getAndProcessQuestionData = function(spreadsheetID) {
 	
 	$.getJSON(url, function(data) {	
 		//use sheet title (FWIW, there appears to be no access to filename)
-		$('h1').html(data.feed.title.$t);
+		me.title=data.feed.title.$t;
+		$('h1').html(me.title);
 		
 		//load questions and build topic list
 		me.loadQuestions(data);
@@ -605,13 +624,15 @@ Quiz.prototype.checkAnswers = function() {
 		$(RESULT_MSG).html('Incorrect <img src="sad.png">');	
 }
 
-//------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 // Download file as .gift (for import into Moodle)
 //  To keep things in the same order in Moodle
 //  	Questions are numbered Q0001, Q0002, etc..
 //  	subCategories are lettered a_given_name, b_given_name, etc..
-//------------------------------------------------------------------
-Quiz.prototype.downloadAsGift = function() {
+//
+//  aTopics - an array of topic names to download.  If empty, all are downloaded
+//-------------------------------------------------------------------------------
+Quiz.prototype.downloadAsGift = function(aTopics) {
 	
 	/*format data as .gift file, like this example:
 	
@@ -627,6 +648,12 @@ Quiz.prototype.downloadAsGift = function() {
 	*/
 	
 	var data = ""; //this will hold our entire output file contents
+
+	data += "// " + this.title + "\n";
+	if (aTopics.length==0)
+		data += "// All sections.\n"
+	else
+		data += "// Sections: " + (" " + aTopics).replace(/\,/g, ", ") + "\n";
 	
 	var prevTopic="aslkjfl;askjfasflalk;laj";
 	var prevSubTopic="alkjfajlf;jla;jflajl;dfsj";
@@ -635,13 +662,24 @@ Quiz.prototype.downloadAsGift = function() {
 	for(var x=0; x<this.aQuestions.length; x++) {
 		q=this.aQuestions[x];
 		
+		//skip questions that aren't in the list of topics we're picking (kinda kludgy)
+		if ( aTopics.length>0 && aTopics.indexOf(q.topic)<0 )
+			continue;
+		
+		
 		//new category?
-
 		if (q.topic != prevTopic || q.subTopic != prevSubTopic) {
-			if (q.topic != prevTopic)
+			if (q.topic != prevTopic) {
 				subTopicLetter=97; //a
-			var category=(q.topic + "/" + String.fromCharCode(subTopicLetter) + "_" + q.subTopic).replace(/ /g, "_");
-			data += ("\n$CATEGORY: " + category + "\n\n");
+				data += ("\n// ========================================================================================");
+			}
+		
+			var fTopic = q.topic.replace(/[\&\\\/]/g, "and");     //replace &, \, or / with "and"
+			var fSubTopic = q.subTopic.replace(/[\&\\\/]/g, "and"); //replace &, \, or / with "and"
+			var category=(fTopic + "/" + String.fromCharCode(subTopicLetter) + "_" + fSubTopic).replace(/ /g, "_");
+			data += "\n// ========================================================================================";
+			data += "\n$CATEGORY: " + category + "\n\n";
+			
 			prevTopic = q.topic;
 			prevSubTopic = q.subTopic;
 			subTopicLetter++; 
