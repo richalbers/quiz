@@ -105,6 +105,10 @@ h2 {
 	zborder-radius: 4px;
 }
 
+.topic .random {
+	border: 2px solid darkgray;
+}
+
 .contentLink {
 	color: black;
 	padding-left: 30px;
@@ -114,10 +118,27 @@ h2 {
 	cursor: pointer;
 }
 
+#zrandomAll {
+	text-align: center;
+	margin: 2px 45px;
+	padding: 0px;
+	border-radius: 10px;
+	background-color:	#ddebf6;
+	padding: 6px;
+	border: 3px solid #637c92; /*same as content container*/
+}
+
 .topic .topicQstCount {
 	color: #AAAAAA;  /*larger #'s are lighter) */
 }
 
+#topics button {
+	font-size: 75%;
+	border-radius: 8px;
+	background-color: #637c92; /*same as content container*/
+	color: white;
+	padding: 3px;
+}
 
 /* items related to (primarily) the question ----------- */
 #quizTitle .topicQstCount {  /*the question count is part of the title and we don't want it displayed here*/
@@ -255,7 +276,7 @@ h2 {
 	width: 20px;
 }
 
-button {
+#quiz button {
 	border-radius: 10px;
 	margin-top: 5px;
 	background-color: green;
