@@ -1,13 +1,14 @@
 //================================================================================
 // File: 	Quiz.js
 // Description: Displays review quizzes
-// Version: 	0.8
+// Version: 	0.9
 // Author: 	Rich Albers
 //
 // Changes
 //  1/26/17 - allowed up to 8 answers, answers can be labeled Answer1-4 or AnswerA-H
 //  4/7/17 - replaced \n with <br> in explanations
 //  4/20/17 - added ability to download selected sections as .gift file
+//  4/28/17 - added random selection options
 //================================================================================
 
 
@@ -116,17 +117,25 @@ $(document).ready(function()
 		$(this).next().slideToggle();
 	});
 	
-	//quiz selected from list
+	//quiz selected from list (either subtopic or random button)
 	$(TOPICS).on("click", ".contentLink", function() {
-		//unselect all other topics and select the one this link is in
+		//unselect all other topics 
 		$(TOPICS + " .selected").each(function () {$(this).removeClass("selected");});
-		$(this).parent().parent().addClass("selected"); //grandparent is topic container
-		$(this).addClass("selected"); //TEST TEST TEST
+		
+		//highlight the subcategory (or button) selected
+		$(this).addClass("selected");
+		//highlight category(s) slelcted
+		if ( $(this).hasClass("randomAll") )
+			$('.topic').addClass("selected"); // all topics
+		else
+			$(this).parent().parent().addClass("selected"); //grandparent is topic container
+			//  Note: prev line only works for button in topic because button is in ul. (which it shouldn't be!)
+			//  To Fix: add topic to topic div as data (or id) and found that way.  Probably.
 		
 		//quiz title will be "Category: subCategory"
-		var catTitle=$(this).parent().parent().children(":first").html(); //grandparent is topic container
-		var subCatTitle=$(this).html();
-		$(QUIZ_TITLE).html(catTitle + ": " + subCatTitle); 
+		var topic=$(this).attr("data-topic");
+		var subTopic=$(this).attr("data-subTopic");
+		$(QUIZ_TITLE).html(topic + ": " + subTopic); 
 		
 		//display quiz
 		hideButtonsAndMessages();
@@ -136,8 +145,18 @@ $(document).ready(function()
 		$(GOTO_NEXT).show();
 		$(GOTO_PREV).show();
 		
-		var classSubClass=$(this).attr("data-quiz");
-		oQuiz.setLimits(classSubClass);
+		if ( $(this).hasClass("randomAll") ) {
+			oQuiz.mode = "rand";
+			oQuiz.setLimits("", "");
+		} else if ($(this).hasClass("randomInTopic") ) { 
+			oQuiz.mode = "rand";
+			oQuiz.setLimits(topic, "");
+		}
+		else {
+			oQuiz.mode = "seq";
+			oQuiz.setLimits(topic, subTopic)
+		}
+		
 		oQuiz.iCurrQst=oQuiz.iFirstNdx-1;
 		oQuiz.showOnlyIncorrect=false;
 		oQuiz.displayNextQuestion();
@@ -262,6 +281,7 @@ function Quiz() {
 	this.iCurrQst = -1;				//index of question currently displayed
 	this.iFirstNdx = -1;
 	this.iLastNdx = -1;
+	this.mode=""; 					//will be set to seq (sequential) or rand (random)
 }
 
 //--------------------------------------------------------------------------------------------- 
@@ -270,20 +290,41 @@ function Quiz() {
 //		iFirstNdx will be set to first questions in given topic/subtopic
 //		iLastNdx will be set to last question in given topic/subtopic
 //--------------------------------------------------------------------------------------------- 
-Quiz.prototype.setLimits = function(topicSubTopic) {
-	var x=0;
-	
-	//first first question in given topicSubTopic
-	while(x < this.aQuestions.length && topicSubTopic != (this.aQuestions[x].topic + this.aQuestions[x].subTopic) )
-		x++;
-	this.iFirstNdx = x;
+Quiz.prototype.setLimits = function(topic, subTopic) {
 
-	//find last question in given topicSubtopic, and mark all questions as incorrect (not yet answered correctly)
-	while(x < this.aQuestions.length && topicSubTopic == (this.aQuestions[x].topic + this.aQuestions[x].subTopic) ) {
-		this.aQuestions[x].correct=false;
-		x++;
+	var low = 0;
+	var high = this.aQuestions.length-1;
+	
+	if (topic != "") {
+		//find first question in given topic
+		var x=low;
+		while (x <= high && this.aQuestions[x].topic != topic )
+			x++;
+		low=x;
+
+		//find last question in given topic
+		while (x <= high &&  this.aQuestions[x].topic == topic) {
+			this.aQuestions[x].correct=false;
+			x++;
+		}
+		high=x-1;
 	}
-	this.iLastNdx = x-1;
+		
+	if (subTopic != "") {
+		//first first question in given topic/SubTopic
+		var x=low;
+		while(x <= high && this.aQuestions[x].subTopic != subTopic )
+			x++;
+		low=x;
+
+		//find last question in given topic/Subtopic
+		while(x <= high && this.aQuestions[x].subTopic == subTopic) 
+			x++;
+		high = x-1;
+	}
+
+	this.iFirstNdx=low;
+	this.iLastNdx = high;
 }
 
 //------------------------------------------------------------------------------------------
@@ -335,14 +376,16 @@ Quiz.prototype.loadQuestions = function(data)  {
 	var currentTopic="Potpouri";
 	var currentSubTopic="Potpouri";
 	$(data.feed.entry).each(function() {
-		//if topic/subtopic is specified, save it.  It's added to every question object
+		//topic line?
 		if (typeof this.gsx$topic !== 'undefined' && trim(this.gsx$topic.$t).length>1)
 			currentTopic=this.gsx$topic.$t;
-		if (typeof this.gsx$subtopic !== 'undefined' && trim(this.gsx$subtopic.$t).length>1) 
+		
+		//subtopic line?
+		else if (typeof this.gsx$subtopic !== 'undefined' && trim(this.gsx$subtopic.$t).length>1) 
 			currentSubTopic=this.gsx$subtopic.$t;
 
-		//if question is specified, build question object
-		if (typeof this.gsx$question !== 'undefined' && trim(this.gsx$question.$t).length > 3) {
+		//question line?
+		else if (typeof this.gsx$question !== 'undefined' && trim(this.gsx$question.$t).length > 3) {
 			var q = new Object;
 			q.topic=currentTopic;
 			q.subTopic=currentSubTopic;
@@ -351,36 +394,21 @@ Quiz.prototype.loadQuestions = function(data)  {
 			//load answer data
 			var msgIncorrect="This is an incorrect answer";
 			q.answers = new Array;
-			//the first four can be Answer1,2,3,4 (old way) or answerA,B,C,D (new way)
-			if (typeof this.gsx$answer1 !== 'undefined' && trim(this.gsx$answer1.$t).length>0) 
-				q.answers.push({text: this.gsx$answer1.$t, correct: false, explanation: msgIncorrect});
-			else if (typeof this.gsx$answera !== 'undefined' && trim(this.gsx$answera.$t).length>0) 
-				q.answers.push({text: this.gsx$answera.$t, correct: false, explanation: msgIncorrect});
 			
-			if (typeof this.gsx$answer2 !== 'undefined' && trim(this.gsx$answer2.$t).length>0) 
-				q.answers.push({text: this.gsx$answer2.$t, correct: false, explanation: msgIncorrect});
-			else if (typeof this.gsx$answerb !== 'undefined' && trim(this.gsx$answerb.$t).length>0) 
-				q.answers.push({text: this.gsx$answerb.$t, correct: false, explanation: msgIncorrect});
-			
-			if (typeof this.gsx$answer3 !== 'undefined' && trim(this.gsx$answer3.$t).length>0) 
-				q.answers.push({text: this.gsx$answer3.$t, correct: false, explanation: msgIncorrect});
-			else if (typeof this.gsx$answerc !== 'undefined' && trim(this.gsx$answerc.$t).length>0) 
-				q.answers.push({text: this.gsx$answerc.$t, correct: false, explanation: msgIncorrect});
-			
-			if (typeof this.gsx$answer4 !== 'undefined' && trim(this.gsx$answer4.$t).length>0) 
-				q.answers.push({text: this.gsx$answer4.$t, correct: false, explanation: msgIncorrect});					
-			else if (typeof this.gsx$answerd !== 'undefined' && trim(this.gsx$answerd.$t).length>0) 
-				q.answers.push({text: this.gsx$answerd.$t, correct: false, explanation: msgIncorrect});			
-			
-			//only answerE,F,G,H are valid for the last 4 possible answers.
-			if (typeof this.gsx$answere !== 'undefined' && trim(this.gsx$answere.$t).length>0) 
-				q.answers.push({text: this.gsx$answere.$t, correct: false, explanation: msgIncorrect});					
-			if (typeof this.gsx$answerf !== 'undefined' && trim(this.gsx$answerf.$t).length>0) 
-				q.answers.push({text: this.gsx$answerf.$t, correct: false, explanation: msgIncorrect});
-			if (typeof this.gsx$answerg !== 'undefined' && trim(this.gsx$answerg.$t).length>0) 
-				q.answers.push({text: this.gsx$answerg.$t, correct: false, explanation: msgIncorrect});
-			if (typeof this.gsx$answerh !== 'undefined' && trim(this.gsx$answerh.$t).length>0) 
-				q.answers.push({text: this.gsx$answerh.$t, correct: false, explanation: msgIncorrect});
+			//Add answers (note: if the gsx$ fields are undefined, they're simply not added)  
+			//The first four can be answera,b,c,d (new way) or answer1,2,3,4 (old way)
+			if (me.addAnswer(q, this.gsx$answera) == false)
+				me.addAnswer(q, this.gsx$answer1);
+			if (me.addAnswer(q, this.gsx$answerb) == false)
+				me.addAnswer(q, this.gsx$answer2);
+			if (me.addAnswer(q, this.gsx$answerc) == false)
+				me.addAnswer(q, this.gsx$answer3);
+			if (me.addAnswer(q, this.gsx$answerd) == false)
+				me.addAnswer(q, this.gsx$answer4);
+			me.addAnswer(q, this.gsx$answere);
+			me.addAnswer(q, this.gsx$answerf);
+			me.addAnswer(q, this.gsx$answerg);
+			me.addAnswer(q, this.gsx$answerh);
 			
 			//mark the correct answers as correct
 			for(var x=0; x<this.gsx$correct.$t.length; x++) {
@@ -415,83 +443,112 @@ Quiz.prototype.loadQuestions = function(data)  {
 			//add it to the array
 			me.aQuestions.push(q);  //FIX?????????????
 		} // if question
-		//otherwise, see if this line contains answer explanations (for previous question)
+		
+		//otherwise, the line must contain answer explanations for previous question. 
 		else {
-			if (typeof this.gsx$answer1 !== 'undefined' && trim(this.gsx$answer1.$t).length>0) 
-				me.aQuestions[me.aQuestions.length-1].answers[0].explanation=this.gsx$answer1.$t;
-			else if (typeof this.gsx$answera !== 'undefined' && trim(this.gsx$answera.$t).length>0) 
-				me.aQuestions[me.aQuestions.length-1].answers[0].explanation=this.gsx$answera.$t;
-			
-			if (typeof this.gsx$answer2 !== 'undefined' && trim(this.gsx$answer2.$t).length>0) 
-				me.aQuestions[me.aQuestions.length-1].answers[1].explanation=this.gsx$answer2.$t;			
-			else if (typeof this.gsx$answerb !== 'undefined' && trim(this.gsx$answerb.$t).length>0) 
-				me.aQuestions[me.aQuestions.length-1].answers[1].explanation=this.gsx$answerb.$t;
-			
-			if (typeof this.gsx$answer3 !== 'undefined' && trim(this.gsx$answer3.$t).length>0) 
-				me.aQuestions[me.aQuestions.length-1].answers[2].explanation=this.gsx$answer3.$t;			
-			else if (typeof this.gsx$answerc !== 'undefined' && trim(this.gsx$answerc.$t).length>0) 
-				me.aQuestions[me.aQuestions.length-1].answers[2].explanation=this.gsx$answerc.$t;
-			
-			if (typeof this.gsx$answer4 !== 'undefined' && trim(this.gsx$answer4.$t).length>0) 
-				me.aQuestions[me.aQuestions.length-1].answers[3].explanation=this.gsx$answer4.$t;
-			else if (typeof this.gsx$answerd !== 'undefined' && trim(this.gsx$answerd.$t).length>0) 
-				me.aQuestions[me.aQuestions.length-1].answers[3].explanation=this.gsx$answerd.$t;			
-			
-			if (typeof this.gsx$answere !== 'undefined' && trim(this.gsx$answere.$t).length>0) 
-				me.aQuestions[me.aQuestions.length-1].answers[4].explanation=this.gsx$answere.$t;			
-			if (typeof this.gsx$answerf !== 'undefined' && trim(this.gsx$answerf.$t).length>0) 
-				me.aQuestions[me.aQuestions.length-1].answers[5].explanation=this.gsx$answerf.$t;
-			if (typeof this.gsx$answerg !== 'undefined' && trim(this.gsx$answerg.$t).length>0) 
-				me.aQuestions[me.aQuestions.length-1].answers[6].explanation=this.gsx$answerg.$t;
-			if (typeof this.gsx$answerh !== 'undefined' && trim(this.gsx$answerh.$t).length>0) 
-				me.aQuestions[me.aQuestions.length-1].answers[7].explanation=this.gsx$answerh.$t;			
-			} //else
+			//update explanations (if the gsx$ fields are undefined, they're simply not added)
+			//The first four can be fields answera,b,c,d (new way) or answer1,2,3,4 (old way)
+			if (me.updateAnswerExplanation(this.gsx$answera, 0) == false)
+				me.updateAnswerExplanation(this.gsx$answer1, 0);
+			if (me.updateAnswerExplanation(this.gsx$answerb, 1) == false)
+				me.updateAnswerExplanation(this.gsx$answer2, 1);
+			if (me.updateAnswerExplanation(this.gsx$answerc, 2) == false)
+				me.updateAnswerExplanation(this.gsx$answer3, 2);
+			if (me.updateAnswerExplanation(this.gsx$answerd, 3) == false)
+				me.updateAnswerExplanation(this.gsx$answer4, 3);
+			me.updateAnswerExplanation(this.gsx$answere, 4)
+			me.updateAnswerExplanation(this.gsx$answerf, 5)
+			me.updateAnswerExplanation(this.gsx$answerg, 6)
+			me.updateAnswerExplanation(this.gsx$answerh, 7)
+		} //else
 		lineNum++;
 	});//each
 }
-//------------------------------------------------------------------------------------------------------------
-Quiz.prototype.buildTopicList = function() {		
-		//go through questions array for topics and build list of topic links
-		//NOTE: topics should be in order and not duplicated!!! Otherwise results are unknown.  Not tested...
-		// <div id="topics">
-		//   <h2>Topics</h2>
-		//   <div id="topic"> //repeated for each different topic
-		//      <h3>[topic title]</h3>
-		//      <ul>
-		//         <li>quiz link</li>   //repeated for each new link
-		//      </ul>
-		//   </div>   //topic
-		// </div>
-		
-		//TODO FIX the logic in the for loop.  It's messy.
-		var currTopic="none";
-		var currSubTopic="none";
-		var subtopicStartNdx=-1;
-		var newTopic=true;
-		for(var x=0; x<this.aQuestions.length; x++) {
-			if (this.aQuestions[x].topic != currTopic) {
-				currTopic = this.aQuestions[x].topic;
-				$(TOPICS).append('<div class="topic"><h3>' + currTopic +'</h3> <ul></ul> </div>');
-				newTopic=true;
-			}
-			if (newTopic==true || this.aQuestions[x].subTopic != currSubTopic) {
-				//add question count to previous subtopic link
-				if (subtopicStartNdx != -1) { //don't do this if this is the first subtopic.
-					$(TOPICS + ' li:last').append('<span class="topicQstCount"> (' + (x-subtopicStartNdx) + ')</span>');
-				}
-				subtopicStartNdx=x;
-				//add new subtopic link
-				currSubTopic = this.aQuestions[x].subTopic;
-				var sHTML='<li class="contentLink" data-quiz="' + currTopic+currSubTopic +'">' +currSubTopic+'</li>';
-				$(TOPICS + ' ul:last').append(sHTML);
-			}
-			newTopic=false;
-		}; //for
-		//add queston count to last subtopic link
-		$(TOPICS + ' li:last').append('<span class="topicQstCount"> (' + (x-subtopicStartNdx) + ')</span>');
 
+Quiz.prototype.addAnswer = function(q, answer) {
+	if (typeof answer !== 'undefined' && trim(answer.$t).length>0) { 
+		q.answers.push({text: answer.$t, correct: false, explanation: "This is an incorrect answer"});
+		return true;
+	}
+	else
+		return false;
 }
 
+Quiz.prototype.updateAnswerExplanation = function(explanation, ansNdx) {
+	if (typeof explanation !== 'undefined' && trim(explanation.$t).length>0) {
+		this.aQuestions[this.aQuestions.length-1].answers[ansNdx].explanation=explanation.$t;
+		return true;
+	}
+	else	
+		return false;
+}
+
+//------------------------------------------------------------------------------------------------------------
+Quiz.prototype.buildTopicList = function() {		
+	//go through questions array for topics and build list of topic links
+	//NOTE: topics should be in order and not duplicated!!! Otherwise results are unknown.  Not tested...
+	// <div id="topics">
+	//   <h2>Topics</h2>
+	//   <div class="topic"> //repeated for each different topic
+	//      <h3>[topic_title]</h3>
+	//      <ul>
+	//         <li>subtopic_title - quiz link</li>   //repeated for each new link
+	//      </ul>
+	//		<button>random</button>
+	//   </div>   //topic
+	// </div>
+	
+	//TODO FIX the logic in the for loop.  It's messy.
+	var currTopic="none";
+	var currSubTopic="none";
+	var subtopicStartNdx=-1;
+	var newTopic=true;
+	for(var x=0; x<this.aQuestions.length; x++) {
+		if (this.aQuestions[x].topic != currTopic) {
+			currTopic = this.aQuestions[x].topic;
+			$(TOPICS).append('<div class="topic"><h3>' + currTopic +'</h3> <ul></ul> </div>');
+			newTopic=true;
+		}
+		if (newTopic==true || this.aQuestions[x].subTopic != currSubTopic) {
+			//add question count to previous subtopic link
+			if (subtopicStartNdx != -1) { //don't do this if this is the first subtopic.
+				$(TOPICS + ' li:last').append('<span class="topicQstCount"> (' + (x-subtopicStartNdx) + ')</span>');
+			}
+			subtopicStartNdx=x;
+			//add new subtopic link
+			currSubTopic = this.aQuestions[x].subTopic;
+			$('<li>' + currSubTopic + '</li>')
+				.addClass("contentLink")
+				.attr("data-topic", currTopic)
+				.attr("data-subTopic", currSubTopic)
+				.appendTo($(TOPICS + ' ul:last'));
+		}
+		newTopic=false;
+	}; //for
+	
+	//add question count to last subtopic link
+	$(TOPICS + ' li:last').append('<span class="topicQstCount"> (' + (x-subtopicStartNdx) + ')</span>');
+	
+	//add random question button to the end of each topic  
+	$(TOPICS + ' h3').each( function() {
+		var topic = $(this).html(); 
+		var buttonElem = $('<button>surprise me!</button>')
+			.addClass("contentLink")
+			.addClass("randomInTopic")
+			.attr("data-topic", topic)
+			.attr("data-subTopic", "all (random)");
+		$(this).next().append(buttonElem);
+	});
+	
+	//add random question button after topic list
+	var topic = "All" 
+	var buttonElem = $('<button>surprise me!</button>')
+		.addClass("contentLink")
+		.addClass("randomAll")
+		.attr("data-topic", "All Topics")
+		.attr("data-subTopic", "random");
+	$(TOPICS).append(buttonElem);
+}
 //--------------------------------------------------------------------------------------------------
 // Displays the next question in the dataset by loading all the question data from the quiz object
 // into html elements it builds and puts on the page. Some info for questions (correct/explanation)
@@ -507,19 +564,24 @@ Quiz.prototype.displayNextQuestion = function() {
 	$(QUESTION).html("");
 	$(ANSWERS).html("");
 	$(EXPLANATION).html("");
-		
-	//invalid question#?
-	if (this.iCurrQst+1 > this.iLastNdx)
-		return false;
-
-	//increment currQst ndx. If only showing incorrectly answered questions, skip over correct ones.
-	this.iCurrQst++;
-	if (this.showOnlyIncorrect == true) {
-		while (this.iCurrQst <= this.iLastNdx && this.aQuestions[this.iCurrQst].correct == true)
-			this.iCurrQst++;
-		if (this.iCurrQst > this.iLastNdx) {
-			this.iCurrQst--;
+	
+	//determine question to display
+	if (this.mode == "rand") {
+		this.iCurrQst=Math.floor((Math.random() * (this.iLastNdx-this.iFirstNdx+1)) + this.iFirstNdx);
+		//Math.floor((Math.random() * 10) + 1); //between 1 and 10
+	} else { //sequential
+		//invalid question#?
+		if (this.iCurrQst+1 > this.iLastNdx)
 			return false;
+		//increment currQst ndx. If only showing incorrectly answered questions, skip over correct ones.
+		this.iCurrQst++;
+		if (this.showOnlyIncorrect == true) {
+			while (this.iCurrQst <= this.iLastNdx && this.aQuestions[this.iCurrQst].correct == true)
+				this.iCurrQst++;
+			if (this.iCurrQst > this.iLastNdx) {
+				this.iCurrQst--;
+				return false;
+			}
 		}
 	}
 	
