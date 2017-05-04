@@ -592,11 +592,21 @@ Quiz.prototype.displayNextQuestion = function() {
 		(this.iCurrQst-this.iFirstNdx +1) + " of " 
 		+ (this.iLastNdx - this.iFirstNdx + 1) );
 
+	//determine order answers will be shown
+	// normally, they're just shown in the order they're in the datafile
+	// but if we're showing random questions, the answers are randomized as well
+	var answerOrder = new Array; 
+	for (var x=0; x<oQst.answers.length; x++) 
+		answerOrder.push(x); //0,1,2,3,etc..
+	if (this.mode == "rand") {
+		answerOrder.sort(function(a, b){return 0.5 - Math.random()});
+	}
+	
 	//display answers
-
 	for(var x=0; x<oQst.answers.length; x++)
 	{
-		if (oQst.answers[x].correct) 
+		var ansNdx = answerOrder[x];
+		if (oQst.answers[ansNdx].correct) 
 			sCorrect="true";
 		else 
 			sCorrect="false";
@@ -605,13 +615,13 @@ Quiz.prototype.displayNextQuestion = function() {
 			+ '<div class="mark"><img src="sad.png" alt="X"></div>'
 			+ '<div class="answer" '
 			+	'data-correct="' + sCorrect + '" '
-			+ 	'data-explanation="' + oQst.answers[x].explanation + '" '
+			+ 	'data-explanation="' + oQst.answers[ansNdx].explanation + '" '
 			+ '>'
-			+ formatAsHTML(oQst.answers[x].text)
+			+ formatAsHTML(oQst.answers[ansNdx].text)
 			+ '</div>';
 			+ '</div>';
 		$(ANSWERS).append(sAnsHTML);
-	};
+	}
 
 	//question help
 	$(BUTTON_HELP).hide();
