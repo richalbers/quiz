@@ -1,14 +1,9 @@
 //================================================================================
-// File: 	Quiz.js
-// Description: Displays review quizzes
-// Version: 	0.9
-// Author: 	Rich Albers
+// File: 		Quiz.js
+// Description: Presents review quizzes
+// Version: 	1.0
+// Author: 		Rich Albers
 //
-// Changes
-//  1/26/17 - allowed up to 8 answers, answers can be labeled Answer1-4 or AnswerA-H
-//  4/7/17 - replaced \n with <br> in explanations
-//  4/20/17 - added ability to download selected sections as .gift file
-//  4/28/17 - added random selection options
 //================================================================================
 
 
@@ -38,7 +33,7 @@ var oQuiz=new Quiz();
 /*  Quiz object is built in loadQuestions() and looks like this:
 { 
 	//all the potential questions for the quizzes (loaded from spreadsheet)
-	aQuestions: [
+	aAllQuestions: [
 		{
 			topic: 	  "bla",
 			subTopic: "bla",
@@ -53,12 +48,16 @@ var oQuiz=new Quiz();
 			correct: false,
 			showOnlyIncorrect: false,
 			lineNum: 123	//associated line in spreadsheet
+			dispType: "S" = sequential (the default) shown if user clicks on single subcategory (or "surprise me")
+					  "R" = random - shown only if user selects "surprise me")
 		},
 		...
 	]
-	//index values of quiz questions on currently in-progess quiz
-	iFirstNdx:  X; 	//index of first question in selected topic/subtopic set
-	iLastNdx: X;	//index of last question in selected topic/subtopic set
+	//a subset of the potential questions that are being used for the current quiz
+	aQuizQuestions: [
+		..
+	]
+
 	iCurrQst: X;	//index of question currently being displayed
 }
 */
@@ -80,6 +79,7 @@ $(document).ready(function()
 	
 	//hide existing not-yet-needed elements
 	hideButtonsAndMessages();
+	displayInstructions();
 	
 	// load all questions from google spreadsheet (and build topic last)
 	var spreadsheetID = GetUrlParam('id');
@@ -147,17 +147,19 @@ $(document).ready(function()
 		
 		if ( $(this).hasClass("randomAll") ) {
 			oQuiz.mode = "rand";
-			oQuiz.setLimits("", "");
+			oQuiz.selectQuestions("", "", "");
+			oQuiz.aQuizQuestions.sort(function(a, b){return 0.5 - Math.random()}); //randmomize order
 		} else if ($(this).hasClass("randomInTopic") ) { 
 			oQuiz.mode = "rand";
-			oQuiz.setLimits(topic, "");
+			oQuiz.selectQuestions(topic, "", "");
+			oQuiz.aQuizQuestions.sort(function(a, b){return 0.5 - Math.random()}); //randomize order
 		}
 		else {
 			oQuiz.mode = "seq";
-			oQuiz.setLimits(topic, subTopic)
+			oQuiz.selectQuestions(topic, subTopic, "S");
 		}
 		
-		oQuiz.iCurrQst=oQuiz.iFirstNdx-1;
+		oQuiz.iCurrQst=-1; //is incremented before used
 		oQuiz.showOnlyIncorrect=false;
 		oQuiz.displayNextQuestion();
 	});
@@ -172,7 +174,7 @@ $(document).ready(function()
 	
 	$(GOTO_PREV).on("click", function() {
 		//Kind of a kludge.  If possible, back up 2, then act like "Next Question" button was pressed.
-		if (oQuiz.iCurrQst>oQuiz.iFirstNdx) {
+		if (oQuiz.iCurrQst>0) {
 			oQuiz.iCurrQst-=2;  //might make it -1, but it's incremented before being used. Remain calm.
 			$(BUTTON_NEXT).trigger("click");
 		};
@@ -209,19 +211,19 @@ $(document).ready(function()
 			$(BUTTON_CHECK).show();
 		} else {
 			var totCorrect=0;
-			var totQuestions=oQuiz.iLastNdx - oQuiz.iFirstNdx + 1;
-			for (var x=oQuiz.iFirstNdx; x<=oQuiz.iLastNdx; x++) {
-				if (oQuiz.aQuestions[x].correct == true)
+			var totQuestions=oQuiz.aQuizQuestions.length;
+			for (var x=0; x<oQuiz.aQuizQuestions.length; x++) {
+				if (oQuiz.aQuizQuestions[x].correct == true)
 					totCorrect++;
 			}
 			$(QUESTION).html("You've come to the end of the questions for this topic.<br><br>" 
 			  + "You answered " + totCorrect + " out of " + totQuestions + " questions correctly.<br>");
 			if (totCorrect != totQuestions)
 				$(QUESTION).append("<button id='retry'>Retry the missed questions</button> or");
-			$(QUESTION).append("<br>&larr;pick another topic from the list on the left.");	
+			$(QUESTION).append("<br>&lArr;pick another topic from the list on the left.");	
 
 			$("#retry").click( function() {
-				oQuiz.iCurrQst=oQuiz.iFirstNdx-1;
+				oQuiz.iCurrQst=-1; //incremented before used.
 				oQuiz.showOnlyIncorrect=true;
 				$(BUTTON_CHECK).show();
 				oQuiz.displayNextQuestion();
@@ -271,60 +273,39 @@ function hideButtonsAndMessages() {
 	$(BUTTON_NEXT).hide();
 }
 
+//------------------------------------------------------------------
+function displayInstructions() {
+	var msg="<p>&#8678; Select a topic, then subtopic, from the Topics list.<p><br>";
+
+	msg+="<p>When a topic/subtopic is selected, you'll be presented a set of questions.  After answering all of them, you'll be given the opportunity to retry those you missed.</p><br>";
+	msg+="<p>Clicking on \"surprise me\" will show you all the questions in that topic in random order, including possibly some questions not displayed previously.  The question order, as well as the answer order, will be randomized.</p><br>";
+	msg+="<p>It's recommended that you first go through all the questions in a topic in order and take the time to research any that you miss.  Then use the category's \"surprise me!\" button to test/verify your understanding of the topic.</b><br>";
+	$(QUESTION).html(msg);
+}
 //================================================================================
 // Quiz class
 // depends on a bunch of constants 
 
 function Quiz() {
 	this.title="";
-	this.aQuestions = new Array; 	//array of questions (each question consists of text and an array of answers)
+	this.aAllQuestions = new Array;	//array of all possible questions (each question consists of text and an array of answers)
+	this.aQuizQuestions = new Array; //array of question on current quiz
 	this.iCurrQst = -1;				//index of question currently displayed
-	this.iFirstNdx = -1;
-	this.iLastNdx = -1;
-	this.mode=""; 					//will be set to seq (sequential) or rand (random)
+	this.mode=""; 					//will be set to "seq" (sequential) or "rand" (random)
 }
 
 //--------------------------------------------------------------------------------------------- 
-// set lower and upper indexes for questions to be included on this quiz
-// When complete
-//		iFirstNdx will be set to first questions in given topic/subtopic
-//		iLastNdx will be set to last question in given topic/subtopic
+// copies questions to be on quiz into aQuizQestions array
 //--------------------------------------------------------------------------------------------- 
-Quiz.prototype.setLimits = function(topic, subTopic) {
+Quiz.prototype.selectQuestions = function(topic, subTopic, dispType) {
+	this.aQuizQuestions = []
+	//slecting all
+	for (var x=0; x<this.aAllQuestions.length; x++)
+		if ((topic == "" || this.aAllQuestions[x].topic == topic )
+		&& (subTopic == "" || this.aAllQuestions[x].subTopic == subTopic )
+		&& (dispType == "" || this.aAllQuestions[x].dispType == dispType))
+			this.aQuizQuestions.push(this.aAllQuestions[x]);
 
-	var low = 0;
-	var high = this.aQuestions.length-1;
-	
-	if (topic != "") {
-		//find first question in given topic
-		var x=low;
-		while (x <= high && this.aQuestions[x].topic != topic )
-			x++;
-		low=x;
-
-		//find last question in given topic
-		while (x <= high &&  this.aQuestions[x].topic == topic) {
-			this.aQuestions[x].correct=false;
-			x++;
-		}
-		high=x-1;
-	}
-		
-	if (subTopic != "") {
-		//first first question in given topic/SubTopic
-		var x=low;
-		while(x <= high && this.aQuestions[x].subTopic != subTopic )
-			x++;
-		low=x;
-
-		//find last question in given topic/Subtopic
-		while(x <= high && this.aQuestions[x].subTopic == subTopic) 
-			x++;
-		high = x-1;
-	}
-
-	this.iFirstNdx=low;
-	this.iLastNdx = high;
 }
 
 //------------------------------------------------------------------------------------------
@@ -340,9 +321,6 @@ Quiz.prototype.getAndProcessQuestionData = function(spreadsheetID) {
 	var me=this;
 	
 	me.title="";
-	me.firstNdx=-1;
-	me.lastNdx=-1;
-	me.currNdx=-1;
 	me.showOnlyIncorrect=false;
 	
 	// get data from google spreadsheet
@@ -390,6 +368,14 @@ Quiz.prototype.loadQuestions = function(data)  {
 			q.topic=currentTopic;
 			q.subTopic=currentSubTopic;
 			q.question=this.gsx$question.$t;
+			if (typeof this.gsx$disptype !== 'undefined' && trim(this.gsx$disptype.$t).length > 0)
+				q.dispType=this.gsx$disptype.$t;
+			else 
+				q.dispType="S"; //the default
+			if (q.dispType != "S" && q.dispType != "R") {
+				console.log("Line: " + lineNum + " -Invalid dispType, was changed to 'S'");
+				q.dispType="S"; //the default
+			}
 
 			//load answer data
 			var msgIncorrect="This is an incorrect answer";
@@ -441,7 +427,7 @@ Quiz.prototype.loadQuestions = function(data)  {
 			q.lineNum=lineNum;
 
 			//add it to the array
-			me.aQuestions.push(q);  //FIX?????????????
+			me.aAllQuestions.push(q); 
 		} // if question
 		
 		//otherwise, the line must contain answer explanations for previous question. 
@@ -476,7 +462,7 @@ Quiz.prototype.addAnswer = function(q, answer) {
 
 Quiz.prototype.updateAnswerExplanation = function(explanation, ansNdx) {
 	if (typeof explanation !== 'undefined' && trim(explanation.$t).length>0) {
-		this.aQuestions[this.aQuestions.length-1].answers[ansNdx].explanation=explanation.$t;
+		this.aAllQuestions[this.aAllQuestions.length-1].answers[ansNdx].explanation=explanation.$t;
 		return true;
 	}
 	else	
@@ -498,38 +484,37 @@ Quiz.prototype.buildTopicList = function() {
 	//   </div>   //topic
 	// </div>
 	
-	//TODO FIX the logic in the for loop.  It's messy.
+	//Build topics/subtopic list
 	var currTopic="none";
 	var currSubTopic="none";
-	var subtopicStartNdx=-1;
 	var newTopic=true;
-	for(var x=0; x<this.aQuestions.length; x++) {
-		if (this.aQuestions[x].topic != currTopic) {
-			currTopic = this.aQuestions[x].topic;
+	for(var x=0; x<this.aAllQuestions.length; x++) {
+		//new topic!
+		if (this.aAllQuestions[x].topic != currTopic) {
+			currTopic = this.aAllQuestions[x].topic;
 			$(TOPICS).append('<div class="topic"><h3>' + currTopic +'</h3> <ul></ul> </div>');
 			newTopic=true;
 		}
-		if (newTopic==true || this.aQuestions[x].subTopic != currSubTopic) {
-			//add question count to previous subtopic link
-			if (subtopicStartNdx != -1) { //don't do this if this is the first subtopic.
-				$(TOPICS + ' li:last').append('<span class="topicQstCount"> (' + (x-subtopicStartNdx) + ')</span>');
-			}
-			subtopicStartNdx=x;
+		//new subtopic!
+		if (newTopic==true || this.aAllQuestions[x].subTopic != currSubTopic) {
 			//add new subtopic link
-			currSubTopic = this.aQuestions[x].subTopic;
+			currSubTopic = this.aAllQuestions[x].subTopic;
 			$('<li>' + currSubTopic + '</li>')
 				.addClass("contentLink")
 				.attr("data-topic", currTopic)
 				.attr("data-subTopic", currSubTopic)
 				.appendTo($(TOPICS + ' ul:last'));
+				
+			//add question count to this new subtopic link
+			var count=this.countQuestions(currTopic,currSubTopic,"S");
+			$(TOPICS + ' li:last').append('<span class="topicQstCount"> (' + count + ')</span>');
+		
+			newTopic=false;
 		}
-		newTopic=false;
 	}; //for
 	
-	//add question count to last subtopic link
-	$(TOPICS + ' li:last').append('<span class="topicQstCount"> (' + (x-subtopicStartNdx) + ')</span>');
-	
 	//add random question button to the end of each topic  
+	var me=this;
 	$(TOPICS + ' h3').each( function() {
 		var topic = $(this).html(); 
 		var buttonElem = $('<button>surprise me!</button>')
@@ -537,7 +522,8 @@ Quiz.prototype.buildTopicList = function() {
 			.addClass("randomInTopic")
 			.attr("data-topic", topic)
 			.attr("data-subTopic", "all (random)");
-		$(this).next().append(buttonElem);
+		var count=me.countQuestions(topic, "","R");
+		$(this).next().append(buttonElem).append('<span class="topicQstCount"> (+' + count + ')</span>');
 	});
 	
 	//add random question button after topic list
@@ -548,6 +534,20 @@ Quiz.prototype.buildTopicList = function() {
 		.attr("data-topic", "All Topics")
 		.attr("data-subTopic", "random");
 	$(TOPICS).append(buttonElem);
+}
+//--------------------------------------------------------------------------------------------------
+// counts and returns the questions in sAllQuestions that have the given topic/subtopic/dispType.
+// "" for any of the parameters are treated as wildcards
+//--------------------------------------------------------------------------------------------------
+Quiz.prototype.countQuestions = function(topic, subTopic, dispType) {
+	var count=0;
+	for(var x=0; x<this.aAllQuestions.length; x++) {
+		if ((topic == "" || this.aAllQuestions[x].topic == topic) 
+		&& (subTopic == "" || this.aAllQuestions[x].subTopic == subTopic)
+		&& (dispType== "" || this.aAllQuestions[x].dispType == dispType))
+			count++;
+	}
+	return count;
 }
 //--------------------------------------------------------------------------------------------------
 // Displays the next question in the dataset by loading all the question data from the quiz object
@@ -565,32 +565,25 @@ Quiz.prototype.displayNextQuestion = function() {
 	$(ANSWERS).html("");
 	$(EXPLANATION).html("");
 	
-	//determine question to display
-	if (this.mode == "rand") {
-		this.iCurrQst=Math.floor((Math.random() * (this.iLastNdx-this.iFirstNdx+1)) + this.iFirstNdx);
-		//Math.floor((Math.random() * 10) + 1); //between 1 and 10
-	} else { //sequential
-		//invalid question#?
-		if (this.iCurrQst+1 > this.iLastNdx)
-			return false;
-		//increment currQst ndx. If only showing incorrectly answered questions, skip over correct ones.
-		this.iCurrQst++;
-		if (this.showOnlyIncorrect == true) {
-			while (this.iCurrQst <= this.iLastNdx && this.aQuestions[this.iCurrQst].correct == true)
-				this.iCurrQst++;
-			if (this.iCurrQst > this.iLastNdx) {
-				this.iCurrQst--;
-				return false;
-			}
-		}
+	//increment currQst ndx. If only showing incorrectly answered questions, skip over correct ones.
+	this.iCurrQst++;
+	if (this.showOnlyIncorrect == true) {
+		while (this.iCurrQst < this.aQuizQuestions.length && this.aQuizQuestions[this.iCurrQst].correct == true)
+			this.iCurrQst++;
 	}
 	
+	//no more questions to display
+	if (this.iCurrQst >= this.aQuizQuestions.length) {
+		this.iCurrQst--;
+		return false;
+	}
+
+	
 	//display question
-	var oQst = this.aQuestions[this.iCurrQst];
+	var oQst = this.aQuizQuestions[this.iCurrQst];
 	$(QUESTION).html( formatAsHTML(oQst.question) );
 	$(QUESTION_NUMBER).html(
-		(this.iCurrQst-this.iFirstNdx +1) + " of " 
-		+ (this.iLastNdx - this.iFirstNdx + 1) );
+		(this.iCurrQst+1) + " of " 	+ this.aQuizQuestions.length );
 
 	//determine order answers will be shown
 	// normally, they're just shown in the order they're in the datafile
@@ -683,9 +676,9 @@ Quiz.prototype.checkAnswers = function() {
 	
 	//update question correct/incorrect status (if not 100% correct, it's considered incorrect)
 	if (iWrong == 0)
-			this.aQuestions[this.iCurrQst].correct=true;
+			this.aQuizQuestions[this.iCurrQst].correct=true;
 	else
-			this.aQuestions[this.iCurrQst].correct=false;
+			this.aQuizQuestions[this.iCurrQst].correct=false;
 		
 	//configure overall result message
 	if (iWrong == 0)
@@ -731,8 +724,8 @@ Quiz.prototype.downloadAsGift = function(aTopics) {
 	var prevSubTopic="alkjfajlf;jla;jflajl;dfsj";
 	var subTopicLetter=97; //lowercase a, used as preface to subTopics to keep them in order
 	
-	for(var x=0; x<this.aQuestions.length; x++) {
-		q=this.aQuestions[x];
+	for(var x=0; x<this.aAllQuestions.length; x++) {
+		q=this.aAllQuestions[x];
 		
 		//skip questions that aren't in the list of topics we're picking (kinda kludgy)
 		if ( aTopics.length>0 && aTopics.indexOf(q.topic)<0 )
