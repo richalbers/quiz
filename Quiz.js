@@ -350,6 +350,8 @@ Quiz.prototype.loadQuestions = function(data)  {
 	var me=this;
 	
 	//load question data
+	// NOTE: no formatting of the data is done here.  
+	//       All formatting is done when it's displayed or written to output file.
 	var lineNum=2;		//first line we read is 2nd line in spreadsheet (1st line is headings)
 	var currentTopic="Potpouri";
 	var currentSubTopic="Potpouri";
@@ -378,7 +380,6 @@ Quiz.prototype.loadQuestions = function(data)  {
 			}
 
 			//load answer data
-			var msgIncorrect="This is an incorrect answer";
 			q.answers = new Array;
 			
 			//Add answers (note: if the gsx$ fields are undefined, they're simply not added)  
@@ -608,7 +609,7 @@ Quiz.prototype.displayNextQuestion = function() {
 			+ '<div class="mark"><img src="sad.png" alt="X"></div>'
 			+ '<div class="answer" '
 			+	'data-correct="' + sCorrect + '" '
-			+ 	'data-explanation="' + oQst.answers[ansNdx].explanation + '" '
+			+ 	'data-explanation="' + htmlizeQuotes(oQst.answers[ansNdx].explanation) + '" ' 
 			+ '>'
 			+ formatAsHTML(oQst.answers[ansNdx].text)
 			+ '</div>';
@@ -620,22 +621,24 @@ Quiz.prototype.displayNextQuestion = function() {
 	$(BUTTON_HELP).hide();
 	if ("help" in oQst) {
 		if (oQst.help.length > 1) {
-			$(HELP).html(oQst.help);
+			$(HELP).html(oQst.help.replace(/\n/g,"<br>") );
 			$(BUTTON_HELP).show();
 		}
 	} 
 	
 	//question explanation
-	if ("explanation" in oQst)
+	if ("explanation" in oQst) {
 		$(EXPLANATION).html( oQst.explanation.replace(/\n/g,"<br>") );
-	else
+	} else
 		$(EXPLANATION).html("");
-	
+
 	//line number (from spreadsheet, for easy reference when making corrections)
 	$('#questionId').html( 'Q' + ('0000'+oQst.lineNum).substr(-4) );
 	
 	return true;
 }
+
+
 
 //------------------------------------------------------------------
 // Update the answer display and question based on how user answered question
@@ -811,6 +814,11 @@ function formatAsHTML(str) {
 	}
 	
 	return newStr;
+}
+
+function htmlizeQuotes(str) {
+	var newstr = str.replace(/\'/g, "&#39;");
+	return newstr.replace(/\"/g,"&quot;");
 }
 
 //================================================================================
