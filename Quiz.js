@@ -792,26 +792,42 @@ Quiz.prototype.downloadAsGift = function(aTopics) {
 
 //================================================================================
 function formatAsHTML(str) {
+	//if line contains special image tag, get image name
+	var regex=RegExp('<image (.*)>', 'g'); //also in array below
+	var imgPath="Images227/";
+	var imgName="";
+	if ( (results = regex.exec(str)) !== null)
+		var imgName=results[1];
+	
+	// special tag and character replacements
 	// characters to replace, followed by replacement values.
-	// Order matters for many of these!
-
+	// Order matters for the speical code and image tags, as they
+	// need to have <> replaced before the <> are changed to &lt and &gt;
 	var swapFromTo = [
-	"<code>", 	"ZZZcodeZZZ",
-	"</code>", 	"ZZZ/codeZZZ",
-	"<", 		"&lt;",
-	">", 		"&gt;",
-	"  ", 		"&nbsp;&nbsp;",
-	"\n", 		"<br>",
-	"ZZZcodeZZZ", "<span class='code'>", 
-	"ZZZ/codeZZZ", "</span>"
+	"<code>", 		"ZZZcodeZZZ",
+	"</code>", 		"ZZZ/codeZZZ",
+	"<image .*>",   "ZZZimageZZZ",
+	"<", 			"&lt;",
+	">", 			"&gt;",
+	"  ", 			"&nbsp;&nbsp;",
+	"\n", 			"<br>",
+	"ZZZcodeZZZ", 	"<span class='code'>", 
+	"ZZZ/codeZZZ", 	"</span>"
+	//ZZZimageZZZ is a special case dealt with after the loop	
 	];
 	
+	//perform the replacments listed in the array above
 	var newStr=str;
 	for(var x=0; x<swapFromTo.length; x+=2) {
 		var find = swapFromTo[x];
 		var regex = new RegExp(find, "g");
 		newStr=newStr.replace(regex, swapFromTo[x+1]);
 	}
+	
+	//if there was an image tag, convert to html with image name
+	if (imgName!="") 
+		newStr=newStr.replace("ZZZimageZZZ",
+		'<div class="imgContainer"><img src="' + imgPath + imgName + '"></div>');
 	
 	return newStr;
 }
