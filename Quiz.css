@@ -257,6 +257,9 @@ h2 {
 .answer:hover {
 	cursor: pointer;
 }
+.answer:hover:not(.selected):not(.correct):not(.incorrect) {
+	border: 3px solid #ffe4b3; /*light orange (selected=orange)*/
+}
 
 .selected {
 	border-color: orange;
@@ -265,6 +268,7 @@ h2 {
 .correct {
 	background-color: lightgreen;
 }
+
 .incorrect {
 	background-color: #E77471; //sortof light red 
 }
